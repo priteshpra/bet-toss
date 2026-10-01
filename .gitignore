@@ -1,0 +1,11 @@
+/vendor/
+/data/*.json
+/data/*.log
+/data/*.lock
+/data/*.tmp
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/dist/
+*.apk

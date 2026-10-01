@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: tg-bet-alert
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: APP_PIN
+        value: "9362"

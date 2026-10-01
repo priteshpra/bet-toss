@@ -1,0 +1,10 @@
+<IfModule mod_authz_core.c>
+    <FilesMatch "\.(json|log|lock|bat)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+RewriteEngine On
+RewriteRule ^data/ - [F,L]
+RewriteRule ^vendor/ - [F,L]
+RewriteRule ^lib/ - [F,L]
