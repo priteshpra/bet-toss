@@ -46,7 +46,7 @@ function load_config(): array
 {
     $cfg = read_json('config.json', []);
     $base = [
-        'pin' => '9362',
+        'pin' => '2565',
         'cronKey' => 'tgbet-cron-9362',
         'channel' => 'BetfairTossbookOrignal',
         'targetUsers' => default_watch_users(),

@@ -8,8 +8,8 @@ import java.util.Set;
 
 public final class Prefs {
     private static final String NAME = "tgbet";
-    public static final String DEFAULT_URL = "https://cologne-auburn-stewart-hardware.trycloudflare.com";
-    public static final String DEFAULT_PIN = "9362";
+    public static final String DEFAULT_URL = "https://bet-toss.onrender.com";
+    public static final String DEFAULT_PIN = "2565";
 
     private Prefs() {}
 
@@ -18,11 +18,19 @@ public final class Prefs {
     }
 
     public static String baseUrl(Context context) {
-        return of(context).getString("baseUrl", DEFAULT_URL);
+        String saved = of(context).getString("baseUrl", DEFAULT_URL);
+        if (saved == null || saved.isEmpty() || saved.contains("trycloudflare.com")) {
+            return DEFAULT_URL;
+        }
+        return saved;
     }
 
     public static String pin(Context context) {
-        return of(context).getString("pin", DEFAULT_PIN);
+        String saved = of(context).getString("pin", DEFAULT_PIN);
+        if (saved == null || saved.isEmpty() || "9362".equals(saved)) {
+            return DEFAULT_PIN;
+        }
+        return saved;
     }
 
     public static boolean alertsOn(Context context) {

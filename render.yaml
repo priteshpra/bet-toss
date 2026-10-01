@@ -8,4 +8,4 @@ services:
     healthCheckPath: /
     envVars:
       - key: APP_PIN
-        value: "9362"
+        value: "2565"

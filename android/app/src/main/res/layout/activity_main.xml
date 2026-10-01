@@ -26,7 +26,7 @@
         android:id="@+id/urlInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="https://your-app.onrender.com"
+        android:hint="https://bet-toss.onrender.com"
         android:importantForAutofill="no"
         android:inputType="textUri"
         android:textColor="#F4F7FB"
