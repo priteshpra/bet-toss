@@ -9,3 +9,4 @@
 /android/local.properties
 /dist/
 *.apk
+!TG-Bet-Alert.apk
