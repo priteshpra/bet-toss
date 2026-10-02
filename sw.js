@@ -1,4 +1,4 @@
-const CACHE = 'tg-bet-alert-v1';
+const CACHE = 'tg-bet-alert-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

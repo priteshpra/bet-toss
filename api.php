@@ -6,12 +6,6 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 $action = $_GET['action'] ?? 'feed';
-$pin = $_SERVER['HTTP_X_PIN'] ?? ($_GET['pin'] ?? '');
-if (!pin_ok(is_string($pin) ? $pin : '')) {
-    http_response_code(401);
-    echo json_encode(['ok' => false, 'error' => 'pin']);
-    exit;
-}
 
 $body = json_decode(file_get_contents('php://input') ?: '', true);
 if (!is_array($body)) {

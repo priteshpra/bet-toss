@@ -1,6 +1,5 @@
 const $ = (id) => document.getElementById(id);
 const seen = new Set(JSON.parse(localStorage.getItem('tga_seen') || '[]'));
-let pin = localStorage.getItem('tga_pin') || '';
 let primed = false;
 let pollTimer = null;
 let deferredPrompt = null;
@@ -42,7 +41,7 @@ function playBeep() {
 async function api(action, body) {
   const res = await fetch('api.php?action=' + encodeURIComponent(action), {
     method: body ? 'POST' : 'GET',
-    headers: { 'Content-Type': 'application/json', 'X-Pin': pin },
+    headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({ ok: false, error: 'bad response' }));
@@ -57,17 +56,6 @@ async function api(action, body) {
 function startPolling() {
   if (pollTimer) return;
   pollTimer = setInterval(refresh, 8000);
-}
-
-function showApp() {
-  $('lock').classList.add('hidden');
-  $('app').classList.remove('hidden');
-}
-
-function showLock(msg) {
-  $('app').classList.add('hidden');
-  $('lock').classList.remove('hidden');
-  $('lockError').textContent = msg || '';
 }
 
 function esc(s) {
@@ -124,11 +112,6 @@ async function refresh() {
   try {
     paint(await api('feed'));
   } catch (e) {
-    if (e.code === 'pin') {
-      localStorage.removeItem('tga_pin');
-      showLock('PIN galat hai');
-      return;
-    }
     $('live').textContent = 'Retry';
   }
 }
@@ -189,19 +172,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
   $('installBtn').classList.remove('hidden');
 });
 
-$('lockForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  pin = $('pin').value.trim();
-  localStorage.setItem('tga_pin', pin);
-  try {
-    paint(await api('feed'));
-    showApp();
-    startPolling();
-  } catch (err) {
-    showLock('PIN galat hai');
-  }
-});
-
 $('alertBtn').addEventListener('click', () => enableAlerts().catch((e) => {
   $('secureNote').textContent = e.message || 'Alert setup fail';
 }));
@@ -237,11 +207,9 @@ if (!window.isSecureContext) {
   $('secureNote').textContent = 'Ye page PC par hai. Phone notification ke liye neeche HTTPS link aane do, use phone Chrome mein kholo.';
 }
 
-if (pin) {
-  $('pin').value = pin;
-  api('feed').then((data) => {
-    paint(data);
-    showApp();
-    startPolling();
-  }).catch(() => showLock('PIN galat hai'));
-}
+api('feed').then((data) => {
+  paint(data);
+  startPolling();
+}).catch(() => {
+  $('live').textContent = 'Retry';
+});
