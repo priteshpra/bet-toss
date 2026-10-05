@@ -20,7 +20,7 @@ try {
     }
     if ($action === 'subscribe') {
         save_sub($body);
-        $push = send_push_all('Telegram alerts ON', 'Rahul Dada, BAT9362, VIP7579, BTB0353, KBT6927 — naya bet aate hi yahan aayega.', 'tg-alerts-on');
+        $push = send_push_all('Telegram alerts ON', 'Rahul Dada, BAT9362, VIP7579, STB3533, KBT6927 — naya bet aate hi yahan aayega.', 'tg-alerts-on');
         echo json_encode(['ok' => true, 'phones' => count(load_subs()), 'push' => $push]);
         exit;
     }

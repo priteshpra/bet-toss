@@ -45,7 +45,7 @@ function canonical_tg_user(?string $name): string
         'rahuldada1' => 'Rahul Dada',
         'bat9362' => 'BAT9362',
         'vip7579' => 'VIP7579',
-        'btb0353' => 'BTB0353',
+        'stb3533' => 'STB3533',
         'kbt6927' => 'KBT6927',
     ];
     return $map[$n] ?? $raw;

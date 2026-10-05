@@ -39,7 +39,7 @@ function write_json(string $file, array $data): void
 
 function default_watch_users(): array
 {
-    return ['Rahul Dada', 'BAT9362', 'VIP7579', 'BTB0353', 'KBT6927'];
+    return ['Rahul Dada', 'BAT9362', 'VIP7579', 'STB3533', 'KBT6927'];
 }
 
 function load_config(): array
