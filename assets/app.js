@@ -21,21 +21,22 @@ function playBeep() {
   const ctx = unlockAudio();
   if (!ctx) return;
   const now = ctx.currentTime;
-  [0, 0.22, 0.44].forEach((delay, i) => {
+  [0, 0.38, 0.76].forEach((delay) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = i === 1 ? 1174 : 880;
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(140, now + delay);
+    osc.frequency.exponentialRampToValueAtTime(55, now + delay + 0.22);
     osc.connect(gain);
     gain.connect(ctx.destination);
     const t0 = now + delay;
     gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(0.28, t0 + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.95, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
     osc.start(t0);
-    osc.stop(t0 + 0.2);
+    osc.stop(t0 + 0.3);
   });
-  navigator.vibrate?.([200, 80, 200, 80, 420]);
+  navigator.vibrate?.([500, 140, 500, 140, 700]);
 }
 
 async function api(action, body) {

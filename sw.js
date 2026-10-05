@@ -1,4 +1,4 @@
-const CACHE = 'tg-bet-alert-v2';
+const CACHE = 'tg-bet-alert-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -44,7 +44,7 @@ self.addEventListener('push', (event) => {
       tag: String(data.tag || 'tg-bet'),
       renotify: true,
       requireInteraction: true,
-      vibrate: [200, 80, 200, 80, 420],
+      vibrate: [500, 140, 500, 140, 700],
       icon: 'icon-192.png',
       badge: 'icon-192.png',
       data: { url: data.url || './' },

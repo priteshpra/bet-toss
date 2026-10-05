@@ -6,6 +6,10 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -30,7 +34,9 @@ import java.util.concurrent.Executors;
 public class AlertService extends Service {
     public static final String ACTION_POLL = "poll";
     private static final int STATUS_ID = 1;
+    private static final String BET_CHANNEL = "bets_knock";
     private static final long INTERVAL_MS = 12000;
+    private static final long[] KNOCK_VIBRATE = new long[]{0, 500, 140, 500, 140, 700};
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService pool = Executors.newSingleThreadExecutor();
@@ -146,19 +152,65 @@ public class AlertService extends Service {
         String user = bet.optString("userName", "Watched user");
         String team = bet.optString("teamName", "—");
         String amount = bet.optString("amount", "—");
-        Notification notification = new NotificationCompat.Builder(this, "bets")
+        boostAlertVolume();
+        Uri knock = knockUri();
+        Notification notification = new NotificationCompat.Builder(this, BET_CHANNEL)
                 .setSmallIcon(android.R.drawable.stat_notify_chat)
                 .setContentTitle(user + " ka naya bet")
                 .setContentText("Team: " + team + "  |  Amount: " + amount)
                 .setStyle(new NotificationCompat.BigTextStyle().bigText("Team: " + team + "  |  Amount: " + amount))
                 .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(true)
-                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setSound(knock)
+                .setVibrate(KNOCK_VIBRATE)
                 .build();
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager != null) {
             manager.notify(Math.abs(id.hashCode()), notification);
+        }
+        playKnock();
+    }
+
+    private Uri knockUri() {
+        return Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.bet_knock);
+    }
+
+    private void boostAlertVolume() {
+        AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (audio == null) return;
+        raiseStream(audio, AudioManager.STREAM_ALARM);
+        raiseStream(audio, AudioManager.STREAM_NOTIFICATION);
+    }
+
+    private void raiseStream(AudioManager audio, int stream) {
+        int max = audio.getStreamMaxVolume(stream);
+        int now = audio.getStreamVolume(stream);
+        int target = Math.max(now, (int) Math.ceil(max * 0.9f));
+        if (now < target) {
+            audio.setStreamVolume(stream, target, 0);
+        }
+    }
+
+    private void playKnock() {
+        MediaPlayer player = new MediaPlayer();
+        try {
+            player.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build());
+            player.setDataSource(this, knockUri());
+            player.setVolume(1f, 1f);
+            player.setOnCompletionListener(MediaPlayer::release);
+            player.setOnErrorListener((mp, what, extra) -> {
+                mp.release();
+                return true;
+            });
+            player.prepare();
+            player.start();
+        } catch (Exception e) {
+            player.release();
         }
     }
 
@@ -183,10 +235,17 @@ public class AlertService extends Service {
     private void createChannels() {
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager == null) return;
-        NotificationChannel bets = new NotificationChannel("bets", "Bet alerts", NotificationManager.IMPORTANCE_HIGH);
+        manager.deleteNotificationChannel("bets");
+        NotificationChannel bets = new NotificationChannel(BET_CHANNEL, "Bet alerts", NotificationManager.IMPORTANCE_HIGH);
+        bets.setSound(knockUri(), new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build());
         bets.enableVibration(true);
+        bets.setVibrationPattern(KNOCK_VIBRATE);
         bets.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         NotificationChannel status = new NotificationChannel("status", "Alert service", NotificationManager.IMPORTANCE_LOW);
+        status.setSound(null, null);
         manager.createNotificationChannel(bets);
         manager.createNotificationChannel(status);
     }
