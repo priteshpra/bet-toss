@@ -76,6 +76,19 @@ function poll_once(bool $notify): array
         $byId = [];
         foreach ($stored as $p) {
             if (!empty($p['postId'])) {
+                if (($p['type'] ?? '') === 'ANNOUNCEMENT' && !empty($p['rawText'])) {
+                    $reparsed = parse_tg_fields($p['rawText'], $targets);
+                    if (($reparsed['type'] ?? '') === 'BET_PLACED') {
+                        $p = array_merge($p, [
+                            'userName' => $reparsed['userName'] ?: 'Anonymous',
+                            'teamName' => $reparsed['teamName'],
+                            'amount' => $reparsed['amount'],
+                            'amountValue' => $reparsed['amountValue'],
+                            'action' => $reparsed['action'],
+                            'type' => $reparsed['type'],
+                        ]);
+                    }
+                }
                 $byId[$p['postId']] = $p;
             }
         }
