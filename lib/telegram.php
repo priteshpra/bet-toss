@@ -60,36 +60,83 @@ function parse_amount_number(?string $raw): float
     return $n === '' ? 0.0 : (float) $n;
 }
 
-function parse_tg_emoji_bet(string $rawText): ?array
+function clean_emoji_and_symbols(string $s): string
 {
-    $line = trim(preg_split('/\R/', $rawText)[0] ?? $rawText);
-    $line = preg_replace('/[🎯💲✅✔]/u', ' ', $line) ?? $line;
-    $line = trim(preg_replace('/\s+/u', ' ', $line) ?? $line);
-    if (!preg_match('/^([A-Za-z][A-Za-z0-9._-]{2,40})\s+(.+?)\s+(₹\s*[\d,]+(?:\.\d+)?|Rs\.?\s*[\d,]+|[\d,]+)$/u', $line, $m)) {
+    $s = preg_replace('/^[\s\p{So}\p{Sk}\p{Sm}\p{Cs}\p{Cn}\p{Co}\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE00}-\x{FE0F}#*@|~`!%^&()_=+[{\]};:\'\"<>,\/?\\-]+/u', '', $s);
+    $s = preg_replace('/[\s\p{So}\p{Sk}\p{Sm}\p{Cs}\p{Cn}\p{Co}\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE00}-\x{FE0F}#*@|~`!%^&()_=+[{\]};:\'\"<>,\/?\\-]+$/u', '', $s);
+    return trim(preg_replace('/\s+/u', ' ', $s));
+}
+
+function parse_tg_emoji_bet(string $rawText, array $targets = []): ?array
+{
+    $firstLine = trim(preg_split('/\R/', $rawText)[0] ?? $rawText);
+    $cleaned = clean_emoji_and_symbols($firstLine);
+
+    if (!preg_match('/^(.*?)\s+(₹\s*[\d,]+(?:\.\d+)?|Rs\.?\s*[\d,]+|[\d,]{2,})$/iu', $cleaned, $match)) {
         return null;
     }
-    $user = trim($m[1]);
-    $mid = trim($m[2]);
-    $amt = trim($m[3]);
-    if (preg_match('/^(deposit|withdrawal|withdraw)$/i', $mid)) {
+
+    $front = trim($match[1]);
+    $amt = trim($match[2]);
+
+    if (preg_match('/^(.*?)\s+(deposit|withdrawal|withdraw)$/iu', $front, $dm)) {
         return [
-            'userName' => $user,
+            'userName' => trim($dm[1]),
             'teamName' => null,
             'amount' => $amt,
-            'action' => $mid,
+            'action' => strtolower($dm[2]),
             'type' => 'DEPOSIT_WITHDRAWAL',
         ];
     }
+
+    $u = null;
+    $t = null;
+
+    if (empty($targets) && function_exists('load_config')) {
+        $targets = (array) (load_config()['targetUsers'] ?? []);
+    }
+
+    foreach ($targets as $target) {
+        $target = trim((string) $target);
+        if ($target === '') {
+            continue;
+        }
+        if (stripos($front, $target) === 0) {
+            $rest = trim(substr($front, strlen($target)));
+            if ($rest !== '') {
+                $u = $target;
+                $t = $rest;
+                break;
+            }
+        }
+    }
+
+    if (!$u && preg_match('/^([A-Za-z0-9][A-Za-z0-9._-]{2,40})\s+(.+)$/u', $front, $fm)) {
+        $u = trim($fm[1]);
+        $t = trim($fm[2]);
+    }
+
+    if (!$u || !$t) {
+        return null;
+    }
+
+    $t = preg_replace('/^(team\s*[:\-]|[:\-])\s*/i', '', $t);
+    $t = trim($t, " :-–—\t");
+
+    if (preg_match('/^(BETFAIR|SHEDULE|SCHEDULE|SUPPORT|LOAD|MATCHES|BONUS)$/iu', $u)) {
+        return null;
+    }
+
     return [
-        'userName' => $user,
-        'teamName' => $mid,
+        'userName' => $u,
+        'teamName' => $t,
         'amount' => $amt,
         'action' => 'BET_PLACED',
         'type' => 'BET_PLACED',
     ];
 }
 
-function parse_tg_fields(string $rawText): array
+function parse_tg_fields(string $rawText, array $targets = []): array
 {
     $userName = null;
     $teamName = null;
@@ -111,9 +158,11 @@ function parse_tg_fields(string $rawText): array
         $action = trim($m[1]);
         $type = 'DEPOSIT_WITHDRAWAL';
     }
-    $skipCompact = (bool) preg_match('/DEPOSIT DONE|WITHDRAWAL DONE|TOSS LOAD|TOSS ID LIST|UPCOMING MATCHES|BONUS\s+\d/i', $rawText);
-    if ($teamName === null && !$skipCompact) {
-        $emojiLine = parse_tg_emoji_bet($rawText);
+
+    $isAnnouncement = (bool) preg_match('/TOSS LOAD|TOSS ID LIST|UPCOMING MATCHES|BONUS\s+\d|WON THE TOSS|BETS SETTLED|FASTEST SETTLEMENT|Live Support|TOSS SHEDULE|TOSS SCHEDULE/i', $rawText);
+
+    if ($teamName === null && !$isAnnouncement) {
+        $emojiLine = parse_tg_emoji_bet($rawText, $targets);
         if ($emojiLine) {
             $userName = $emojiLine['userName'];
             $teamName = $emojiLine['teamName'];
@@ -139,7 +188,7 @@ function parse_tg_fields(string $rawText): array
             }
         }
     }
-    if (!$teamName && $userName && preg_match('/TOSS|WINNER|BET/i', $rawText)) {
+    if (!$teamName && $userName && preg_match('/TOSS|WINNER|BET/i', $rawText) && !$isAnnouncement) {
         $type = 'BET_PLACED';
     }
     if (preg_match('/UPCOMING MATCHES|TOSS ID LIST/i', $rawText)) {

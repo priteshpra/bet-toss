@@ -1,5 +1,5 @@
 @echo off
-cd /d D:\xampp\htdocs\tg-bet-alert
+cd /d "%~dp0"
 echo Starting TG Bet Alert...
 start "TG Alert Web" /MIN D:\xampp\php\php.exe -S 127.0.0.1:8090 router.php
 timeout /t 1 >nul
