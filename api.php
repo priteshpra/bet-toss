@@ -28,6 +28,28 @@ try {
         $push = send_push_all('Test alert', 'Phone notification chal rahi hai. Bet aate hi aisi alert aayegi.', 'tg-test-' . time());
         echo json_encode(['ok' => true, 'push' => $push, 'phones' => count(load_subs())]);
         exit;
+    if ($action === 'feed') {
+        $storedPack = read_json('bets.json', ['posts' => [], 'updatedAt' => '']);
+        $updatedAt = strtotime((string) ($storedPack['updatedAt'] ?? '')) ?: 0;
+        $cfg = load_config();
+        $targets = $cfg['targetUsers'];
+        if ($updatedAt > 0 && (time() - $updatedAt) < 15 && !empty($storedPack['posts'])) {
+            $watched = watched_only($storedPack['posts'], $targets);
+            echo json_encode([
+                'ok' => true,
+                'status' => 'connected',
+                'fetchedAt' => ist_clock(),
+                'config' => public_config(),
+                'watched' => $watched,
+                'fresh' => [],
+                'push' => ['sent' => 0, 'failed' => 0],
+                'vapidPublicKey' => ensure_vapid()['publicKey'],
+                'phones' => count(load_subs()),
+                'watcherAgo' => watcher_age(),
+                'tunnelUrl' => tunnel_url(),
+            ]);
+            exit;
+        }
     }
     echo json_encode(poll_once(true));
 } catch (Throwable $e) {

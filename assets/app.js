@@ -45,6 +45,9 @@ async function api(action, body) {
     headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (!res.ok) {
+    return { ok: false, error: 'HTTP ' + res.status };
+  }
   const data = await res.json().catch(() => ({ ok: false, error: 'bad response' }));
   if (res.status === 401) {
     const err = new Error('pin');
@@ -88,7 +91,12 @@ function noteFresh(bets) {
 }
 
 function paint(data) {
-  $('live').textContent = data.status === 'connected' ? 'Live' : (data.status || 'Wait');
+  if (!data || !data.ok) {
+    $('live').textContent = 'Retry';
+    $('clock').textContent = data?.error ? String(data.error).slice(0, 24) : 'Offline';
+    return;
+  }
+  $('live').textContent = data.status === 'connected' ? 'Live' : (data.status || 'Connecting...');
   $('clock').textContent = data.fetchedAt || '—';
   if (data.config?.targetUsers && document.activeElement !== $('users')) {
     $('users').value = data.config.targetUsers.join(', ');
