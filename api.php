@@ -28,6 +28,7 @@ try {
         $push = send_push_all('Test alert', 'Phone notification chal rahi hai. Bet aate hi aisi alert aayegi.', 'tg-test-' . time());
         echo json_encode(['ok' => true, 'push' => $push, 'phones' => count(load_subs())]);
         exit;
+    }
     if ($action === 'feed') {
         $storedPack = read_json('bets.json', ['posts' => [], 'updatedAt' => '']);
         $updatedAt = strtotime((string) ($storedPack['updatedAt'] ?? '')) ?: 0;
