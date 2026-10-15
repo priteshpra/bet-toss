@@ -5,6 +5,16 @@ let pollTimer = null;
 let deferredPrompt = null;
 let audioCtx = null;
 
+try {
+  const savedUsersRaw = localStorage.getItem('tga_users');
+  if (savedUsersRaw !== null) {
+    const list = JSON.parse(savedUsersRaw);
+    if (Array.isArray(list) && $('users')) {
+      $('users').value = list.join(', ');
+    }
+  }
+} catch (e) {}
+
 function saveSeen() {
   localStorage.setItem('tga_seen', JSON.stringify([...seen].slice(-400)));
 }
@@ -98,8 +108,29 @@ function paint(data) {
   }
   $('live').textContent = data.status === 'connected' ? 'Live' : (data.status || 'Connecting...');
   $('clock').textContent = data.fetchedAt || '—';
-  if (data.config?.targetUsers && document.activeElement !== $('users')) {
-    $('users').value = data.config.targetUsers.join(', ');
+  const localSaved = localStorage.getItem('tga_users');
+  if (localSaved !== null) {
+    try {
+      const list = JSON.parse(localSaved);
+      if (Array.isArray(list)) {
+        if (document.activeElement !== $('users')) {
+          $('users').value = list.join(', ');
+        }
+        const serverTargets = Array.isArray(data.config?.targetUsers) ? data.config.targetUsers : [];
+        if (serverTargets.join(',') !== list.join(',')) {
+          api('save_users', { targetUsers: list }).catch(() => {});
+        }
+      }
+    } catch (e) {
+      if (data.config?.targetUsers && document.activeElement !== $('users')) {
+        $('users').value = data.config.targetUsers.join(', ');
+      }
+    }
+  } else if (data.config?.targetUsers) {
+    if (document.activeElement !== $('users')) {
+      $('users').value = data.config.targetUsers.join(', ');
+    }
+    localStorage.setItem('tga_users', JSON.stringify(data.config.targetUsers));
   }
   const link = $('phoneLink');
   if (data.tunnelUrl) {
@@ -198,7 +229,17 @@ $('installBtn').addEventListener('click', async () => {
 });
 $('saveBtn').addEventListener('click', async () => {
   const users = $('users').value.split(',').map((s) => s.trim()).filter(Boolean);
-  await api('save_users', { targetUsers: users });
+  localStorage.setItem('tga_users', JSON.stringify(users));
+  const oldText = $('saveBtn').textContent;
+  $('saveBtn').textContent = 'Saving...';
+  try {
+    await api('save_users', { targetUsers: users });
+    $('saveBtn').textContent = 'Saved!';
+    setTimeout(() => { $('saveBtn').textContent = oldText; }, 1200);
+  } catch (e) {
+    $('saveBtn').textContent = 'Error';
+    setTimeout(() => { $('saveBtn').textContent = oldText; }, 1200);
+  }
   refresh();
 });
 
