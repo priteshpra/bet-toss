@@ -3,7 +3,10 @@ package com.tgbetalert.app;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.json.JSONArray;
+
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 public final class Prefs {
@@ -54,12 +57,35 @@ public final class Prefs {
         return value;
     }
 
-    public static Set<String> seen(Context context) {
-        return new HashSet<>(of(context).getStringSet("seen", new HashSet<>()));
+    public static LinkedHashSet<String> seen(Context context) {
+        LinkedHashSet<String> set = new LinkedHashSet<>();
+        String json = of(context).getString("seen_json", null);
+        if (json != null && !json.isEmpty()) {
+            try {
+                JSONArray arr = new JSONArray(json);
+                for (int i = 0; i < arr.length(); i++) {
+                    String id = arr.optString(i, "");
+                    if (!id.isEmpty()) {
+                        set.add(id);
+                    }
+                }
+                return set;
+            } catch (Exception ignored) {}
+        }
+        Set<String> legacy = of(context).getStringSet("seen", null);
+        if (legacy != null) {
+            set.addAll(legacy);
+        }
+        return set;
     }
 
-    public static void saveSeen(Context context, Set<String> seen, boolean primed) {
+    public static void saveSeen(Context context, LinkedHashSet<String> seen, boolean primed) {
+        JSONArray arr = new JSONArray();
+        for (String id : seen) {
+            arr.put(id);
+        }
         of(context).edit()
+                .putString("seen_json", arr.toString())
                 .putStringSet("seen", seen)
                 .putBoolean("primed", primed)
                 .apply();

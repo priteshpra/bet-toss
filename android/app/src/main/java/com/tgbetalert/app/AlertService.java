@@ -27,6 +27,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -120,9 +122,21 @@ public class AlertService extends Service {
     private void handleFeed(JSONObject data) {
         JSONArray watched = data.optJSONArray("watched");
         if (watched == null) watched = new JSONArray();
-        Set<String> seen = Prefs.seen(this);
+        LinkedHashSet<String> seen = Prefs.seen(this);
         boolean primed = Prefs.primed(this);
         int fresh = 0;
+
+        Set<String> activeWatched = new HashSet<>();
+        for (int i = 0; i < watched.length(); i++) {
+            JSONObject b = watched.optJSONObject(i);
+            if (b != null) {
+                String bid = b.optString("postId", "");
+                if (!bid.isEmpty()) {
+                    activeWatched.add(bid);
+                }
+            }
+        }
+
         for (int i = watched.length() - 1; i >= 0; i--) {
             JSONObject bet = watched.optJSONObject(i);
             if (bet == null) continue;
@@ -134,15 +148,17 @@ public class AlertService extends Service {
                 showBet(bet, id);
             }
         }
-        if (seen.size() > 400) {
-            Set<String> trimmed = new HashSet<>();
-            int keep = 0;
-            for (String id : seen) {
-                if (keep++ >= 400) break;
-                trimmed.add(id);
+
+        if (seen.size() > 1000) {
+            Iterator<String> it = seen.iterator();
+            while (it.hasNext() && seen.size() > 1000) {
+                String id = it.next();
+                if (!activeWatched.contains(id)) {
+                    it.remove();
+                }
             }
-            seen = trimmed;
         }
+
         Prefs.saveSeen(this, seen, true);
         String clock = data.optString("fetchedAt", "");
         updateStatus(fresh > 0 ? (fresh + " naya bet") : ("Live " + clock));
