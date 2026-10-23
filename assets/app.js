@@ -4,13 +4,14 @@ let primed = false;
 let pollTimer = null;
 let deferredPrompt = null;
 let audioCtx = null;
+let currentUsers = [];
 
 try {
   const savedUsersRaw = localStorage.getItem('tga_users');
   if (savedUsersRaw !== null) {
     const list = JSON.parse(savedUsersRaw);
-    if (Array.isArray(list) && $('users')) {
-      $('users').value = list.join(', ');
+    if (Array.isArray(list)) {
+      currentUsers = list;
     }
   }
 } catch (e) {}
@@ -100,6 +101,62 @@ function noteFresh(bets) {
   });
 }
 
+function renderUserChips() {
+  const box = $('userChips');
+  if (!box) return;
+  if (!currentUsers.length) {
+    box.innerHTML = '<span class="user-chips-empty">Abhi koi user track nahi ho raha. Niche likh kar Add dabayein.</span>';
+    return;
+  }
+  box.innerHTML = currentUsers.map((u, idx) => `
+    <span class="user-chip">
+      <span>${esc(u)}</span>
+      <button type="button" class="remove-chip" data-index="${idx}" title="Remove ${esc(u)}" aria-label="Remove ${esc(u)}">&times;</button>
+    </span>
+  `).join('');
+}
+
+async function saveAndSyncUsers() {
+  renderUserChips();
+  localStorage.setItem('tga_users', JSON.stringify(currentUsers));
+  const addBtn = $('addUserBtn');
+  const oldText = addBtn ? addBtn.textContent : 'Add';
+  if (addBtn) addBtn.textContent = 'Saving...';
+  try {
+    await api('save_users', { targetUsers: currentUsers });
+    if (addBtn) {
+      addBtn.textContent = 'Saved!';
+      setTimeout(() => { addBtn.textContent = oldText; }, 900);
+    }
+  } catch (e) {
+    if (addBtn) {
+      addBtn.textContent = 'Error';
+      setTimeout(() => { addBtn.textContent = oldText; }, 900);
+    }
+  }
+  refresh();
+}
+
+async function addUserFromInput() {
+  const input = $('newUserInput');
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) return;
+  const items = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  let changed = false;
+  for (const name of items) {
+    const exists = currentUsers.some((u) => u.toLowerCase() === name.toLowerCase());
+    if (!exists) {
+      currentUsers.push(name);
+      changed = true;
+    }
+  }
+  input.value = '';
+  if (changed) {
+    await saveAndSyncUsers();
+  }
+}
+
 function paint(data) {
   if (!data || !data.ok) {
     $('live').textContent = 'Retry';
@@ -108,30 +165,31 @@ function paint(data) {
   }
   $('live').textContent = data.status === 'connected' ? 'Live' : (data.status || 'Connecting...');
   $('clock').textContent = data.fetchedAt || '—';
+
   const localSaved = localStorage.getItem('tga_users');
   if (localSaved !== null) {
     try {
       const list = JSON.parse(localSaved);
       if (Array.isArray(list)) {
-        if (document.activeElement !== $('users')) {
-          $('users').value = list.join(', ');
-        }
+        currentUsers = list;
+        renderUserChips();
         const serverTargets = Array.isArray(data.config?.targetUsers) ? data.config.targetUsers : [];
         if (serverTargets.join(',') !== list.join(',')) {
           api('save_users', { targetUsers: list }).catch(() => {});
         }
       }
     } catch (e) {
-      if (data.config?.targetUsers && document.activeElement !== $('users')) {
-        $('users').value = data.config.targetUsers.join(', ');
+      if (data.config?.targetUsers) {
+        currentUsers = [...data.config.targetUsers];
+        renderUserChips();
       }
     }
   } else if (data.config?.targetUsers) {
-    if (document.activeElement !== $('users')) {
-      $('users').value = data.config.targetUsers.join(', ');
-    }
-    localStorage.setItem('tga_users', JSON.stringify(data.config.targetUsers));
+    currentUsers = [...data.config.targetUsers];
+    renderUserChips();
+    localStorage.setItem('tga_users', JSON.stringify(currentUsers));
   }
+
   const link = $('phoneLink');
   if (data.tunnelUrl) {
     link.classList.remove('hidden');
@@ -238,21 +296,30 @@ if ($('installBtn')) {
   });
 }
 
-if ($('saveBtn')) {
-  $('saveBtn').addEventListener('click', async () => {
-    const users = $('users').value.split(',').map((s) => s.trim()).filter(Boolean);
-    localStorage.setItem('tga_users', JSON.stringify(users));
-    const oldText = $('saveBtn').textContent;
-    $('saveBtn').textContent = 'Saving...';
-    try {
-      await api('save_users', { targetUsers: users });
-      $('saveBtn').textContent = 'Saved!';
-      setTimeout(() => { $('saveBtn').textContent = oldText; }, 1200);
-    } catch (e) {
-      $('saveBtn').textContent = 'Error';
-      setTimeout(() => { $('saveBtn').textContent = oldText; }, 1200);
+if ($('userChips')) {
+  $('userChips').addEventListener('click', (e) => {
+    const btn = e.target.closest('.remove-chip');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.index, 10);
+    if (!isNaN(idx) && idx >= 0 && idx < currentUsers.length) {
+      currentUsers.splice(idx, 1);
+      saveAndSyncUsers();
     }
-    refresh();
+  });
+}
+
+if ($('addUserBtn')) {
+  $('addUserBtn').addEventListener('click', () => {
+    addUserFromInput();
+  });
+}
+
+if ($('newUserInput')) {
+  $('newUserInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addUserFromInput();
+    }
   });
 }
 
@@ -269,6 +336,8 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
 if (!window.isSecureContext) {
   $('secureNote').textContent = 'Ye page PC par hai. Phone notification ke liye neeche HTTPS link aane do, use phone Chrome mein kholo.';
 }
+
+renderUserChips();
 
 api('feed').then((data) => {
   paint(data);
