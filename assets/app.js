@@ -209,39 +209,52 @@ async function testAlert() {
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  $('installBtn').classList.remove('hidden');
+  if ($('installBtn')) {
+    $('installBtn').classList.remove('hidden');
+  }
 });
 
-$('alertBtn').addEventListener('click', () => enableAlerts().catch((e) => {
-  $('secureNote').textContent = e.message || 'Alert setup fail';
-}));
-$('testBtn').addEventListener('click', () => testAlert().catch((e) => {
-  $('secureNote').textContent = e.message || 'Test fail';
-}));
-$('installBtn').addEventListener('click', async () => {
-  if (!deferredPrompt) {
-    $('secureNote').textContent = 'Chrome menu (⋮) → Add to Home screen / Install app.';
-    return;
-  }
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-});
-$('saveBtn').addEventListener('click', async () => {
-  const users = $('users').value.split(',').map((s) => s.trim()).filter(Boolean);
-  localStorage.setItem('tga_users', JSON.stringify(users));
-  const oldText = $('saveBtn').textContent;
-  $('saveBtn').textContent = 'Saving...';
-  try {
-    await api('save_users', { targetUsers: users });
-    $('saveBtn').textContent = 'Saved!';
-    setTimeout(() => { $('saveBtn').textContent = oldText; }, 1200);
-  } catch (e) {
-    $('saveBtn').textContent = 'Error';
-    setTimeout(() => { $('saveBtn').textContent = oldText; }, 1200);
-  }
-  refresh();
-});
+if ($('alertBtn')) {
+  $('alertBtn').addEventListener('click', () => enableAlerts().catch((e) => {
+    $('secureNote').textContent = e.message || 'Alert setup fail';
+  }));
+}
+
+if ($('testBtn')) {
+  $('testBtn').addEventListener('click', () => testAlert().catch((e) => {
+    $('secureNote').textContent = e.message || 'Test fail';
+  }));
+}
+
+if ($('installBtn')) {
+  $('installBtn').addEventListener('click', async () => {
+    if (!deferredPrompt) {
+      $('secureNote').textContent = 'Chrome menu (⋮) → Add to Home screen / Install app.';
+      return;
+    }
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  });
+}
+
+if ($('saveBtn')) {
+  $('saveBtn').addEventListener('click', async () => {
+    const users = $('users').value.split(',').map((s) => s.trim()).filter(Boolean);
+    localStorage.setItem('tga_users', JSON.stringify(users));
+    const oldText = $('saveBtn').textContent;
+    $('saveBtn').textContent = 'Saving...';
+    try {
+      await api('save_users', { targetUsers: users });
+      $('saveBtn').textContent = 'Saved!';
+      setTimeout(() => { $('saveBtn').textContent = oldText; }, 1200);
+    } catch (e) {
+      $('saveBtn').textContent = 'Error';
+      setTimeout(() => { $('saveBtn').textContent = oldText; }, 1200);
+    }
+    refresh();
+  });
+}
 
 if ('serviceWorker' in navigator && window.isSecureContext) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
